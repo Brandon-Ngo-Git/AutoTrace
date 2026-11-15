@@ -1,0 +1,2 @@
+[functions.vehicle-research]
+verify_jwt = false

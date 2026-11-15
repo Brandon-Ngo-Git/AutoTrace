@@ -1,0 +1,63 @@
+name: NHTSA data ingestion
+
+on:
+  workflow_dispatch:
+    inputs:
+      make:
+        description: NHTSA vehicle make
+        required: true
+        default: BMW
+        type: string
+      model:
+        description: NHTSA vehicle model label
+        required: true
+        default: 3 SERIES
+        type: string
+      start_year:
+        description: First model year
+        required: true
+        default: "2017"
+        type: string
+      end_year:
+        description: Last model year
+        required: true
+        default: "2024"
+        type: string
+  schedule:
+    - cron: "17 7 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nhtsa-ingestion
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      AUTOTRACE_MAKE: ${{ github.event.inputs.make || 'BMW' }}
+      AUTOTRACE_MODEL: ${{ github.event.inputs.model || '3 SERIES' }}
+      AUTOTRACE_START_YEAR: ${{ github.event.inputs.start_year || '2017' }}
+      AUTOTRACE_END_YEAR: ${{ github.event.inputs.end_year || '2024' }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install ingestion dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Import public NHTSA records
+        run: >-
+          python pipeline/ingest_nhtsa.py
+          --make "$AUTOTRACE_MAKE"
+          --model "$AUTOTRACE_MODEL"
+          --start-year "$AUTOTRACE_START_YEAR"
+          --end-year "$AUTOTRACE_END_YEAR"
